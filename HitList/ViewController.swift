@@ -23,57 +23,8 @@ class ViewController: UIViewController, UITableViewDataSource {
     override func viewWillAppear(animated: Bool) {
         super.viewWillAppear(animated)
         
-        //1: Set app delegate and managed context
-        let appDelegate = UIApplication.sharedApplication().delegate as! AppDelegate
-        let managedContext : NSManagedObjectContext = appDelegate.managedObjectContext
-        
-        //2: Prepare fetch request for existing data
-        
-        let fetchRequest = NSFetchRequest(entityName: "Person")
-                    
-        //3: Execute fetch request for existing data
-        do {
-            let results = try managedContext.executeFetchRequest(fetchRequest)
-            people = results as! [NSManagedObject]
-            
-            //4: Check whether newer data can be retrieved
-            let url = NSURL(string: "http://www.fairobserver.com")
-            let session = NSURLSession.sharedSession()
-            let task = session.dataTaskWithURL(url!) { (data, response, error) -> Void in
-                
-                if error != nil {
-                    print(error)
-                } else {
-                    if let urlContent = data {
-                        
-                        //5: If newer data can be retrieved, delete existing data
-                        fetchRequest.returnsObjectsAsFaults = true
-                        do { let results = try managedContext.executeFetchRequest(fetchRequest)
-                            if results.count > 0 {
-                                for results in results {
-                                    managedContext.deleteObject(results as! NSManagedObject)
-                                }
-                                do { try managedContext.save() } catch {}
-                            }
-                        } catch {}
-                            
-                        //6: Now fetch new data
-                        let webContent = NSString(data: urlContent, encoding: NSUTF8StringEncoding)
-                        self.addText(webContent!)
-                        
-                        //7: Update table with newly fetched data
-                        dispatch_async(dispatch_get_main_queue(),{
-                            self.tableView.performSelectorOnMainThread(Selector("reloadData"), withObject: nil, waitUntilDone: true)
-                        })
-                    }
-                }
-            }
-            
-            task.resume()
-            
-        } catch let error as NSError {
-            print("Could not fetch \(error), \(error.userInfo)")
-        }
+        deleteData()
+        fetchData()
         
     }
     
@@ -108,6 +59,89 @@ class ViewController: UIViewController, UITableViewDataSource {
                 person.valueForKey("name") as? String
             
             return cell!
+    }
+    
+    func fetchData(){
+    
+        //1: Set app delegate and managed context
+        let appDelegate = UIApplication.sharedApplication().delegate as! AppDelegate
+        let managedContext : NSManagedObjectContext = appDelegate.managedObjectContext
+        
+        //2: Prepare fetch request for existing data
+        
+        let fetchRequest = NSFetchRequest(entityName: "Person")
+        
+        //3: Execute fetch request for existing data
+        do {
+            let results = try managedContext.executeFetchRequest(fetchRequest)
+            people = results as! [NSManagedObject]
+            
+            //4: Check whether newer data can be retrieved
+            let url = NSURL(string: "http://www.fairobserver.com")
+            let session = NSURLSession.sharedSession()
+            let task = session.dataTaskWithURL(url!) { (data, response, error) -> Void in
+                
+                if error != nil {
+                    print(error)
+                } else {
+                    if let urlContent = data {
+                    
+                        //5: Now fetch new data
+                        let webContent = NSString(data: urlContent, encoding: NSUTF8StringEncoding)
+                        self.addText(webContent!)
+                        
+                        //6: Update table with newly fetched data
+                        dispatch_async(dispatch_get_main_queue(),{
+                            self.tableView.performSelectorOnMainThread(Selector("reloadData"), withObject: nil, waitUntilDone: true)
+                        })
+                    }
+                }
+            }
+            
+            task.resume()
+            
+        } catch let error as NSError {
+            print("Could not fetch \(error), \(error.userInfo)")
+        }
+    
+    }
+    
+    func deleteData(){
+    
+        //1: Set app delegate and managed context
+        let appDelegate = UIApplication.sharedApplication().delegate as! AppDelegate
+        let managedContext : NSManagedObjectContext = appDelegate.managedObjectContext
+        
+        //2: Prepare fetch request for deleting data
+        
+        let fetchRequest = NSFetchRequest(entityName: "Person")
+        
+        //3: Execute fetch request for deleting data
+        do {
+            let results = try managedContext.executeFetchRequest(fetchRequest)
+            people = results as! [NSManagedObject]
+                        
+            //4: If newer data can be retrieved, delete existing data
+            fetchRequest.returnsObjectsAsFaults = true
+            do { let results = try managedContext.executeFetchRequest(fetchRequest)
+                if results.count > 0 {
+                    for results in results {
+                        managedContext.deleteObject(results as! NSManagedObject)
+                    }
+                    do { try managedContext.save() } catch {}
+                }
+            } catch {}
+                        
+            //5: Update table without deleted data
+            dispatch_async(dispatch_get_main_queue(),{
+                self.tableView.performSelectorOnMainThread(Selector("reloadData"), withObject: nil, waitUntilDone: true)
+                })
+            
+            
+        } catch let error as NSError {
+            print("Could not fetch \(error), \(error.userInfo)")
+        }
+    
     }
     
     func saveName(name: String) {
